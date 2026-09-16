@@ -1,0 +1,1957 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0a1628">
+<title>荷姆茲封鎖戰 · Hormuz Blockade</title>
+<meta name="description" content="荷姆茲封鎖戰 — 佈雷、發射反艦飛彈，擋住美軍第五艦隊。60 秒一局的海峽攻防遊戲。">
+<meta property="og:title" content="荷姆茲封鎖戰 · Hormuz Blockade">
+<meta property="og:description" content="你能擋住第幾波美軍？佈雷、射飛彈、守住海峽 — 60 秒一局。">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://jiapunk.github.io/hormuz-blockade/">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="荷姆茲封鎖戰 · Hormuz Blockade">
+<meta name="twitter:description" content="你能擋住第幾波美軍？佈雷、射飛彈、守住海峽 — 60 秒一局。">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💣</text></svg>">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+  .hidden { display: none !important; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #000; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC", "Microsoft JhengHei", sans-serif; color: #8fffc4; }
+  #game { position: fixed; top: 0; left: 0; width: 100%; height: 100%; }
+  canvas { display: block; width: 100%; height: 100%; background: radial-gradient(ellipse at center, #0a2540 0%, #020a18 100%); touch-action: none; }
+
+  /* HUD */
+  #hud {
+    position: fixed; top: 0; left: 0; right: 0;
+    padding: calc(10px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) 10px calc(12px + env(safe-area-inset-left));
+    display: flex; justify-content: space-between; align-items: flex-start;
+    pointer-events: none; z-index: 10;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.5), transparent);
+  }
+  .hud-box {
+    background: rgba(2, 20, 35, 0.85); border: 1px solid #1a5a7a;
+    border-radius: 8px; padding: 5px 9px; font-size: 13px;
+    box-shadow: 0 0 12px rgba(20, 180, 220, 0.2);
+    font-variant-numeric: tabular-nums;
+  }
+  .hud-label { color: #5a8fa0; font-size: 9px; letter-spacing: 1px; }
+  .hud-val { color: #6eeaa8; font-weight: bold; font-size: 15px; }
+  .hud-val.warn { color: #ff9944; }
+  .hud-val.crit { color: #ff4455; }
+  .hud-oil { color: #ffbb33; font-weight: bold; font-size: 13px; }
+
+  #lives { display: flex; gap: 3px; margin-top: 2px; }
+  .heart { color: #ff4455; font-size: 13px; filter: drop-shadow(0 0 3px #ff4455); }
+  .heart.lost { color: #331015; filter: none; }
+
+  /* Oil bar for next upgrade */
+  #oil-bar-wrap {
+    position: fixed; top: 52px; left: 12px; right: 12px; height: 3px;
+    background: rgba(0,0,0,0.5); border-radius: 2px; z-index: 9; pointer-events: none;
+    overflow: hidden;
+  }
+  #oil-bar { height: 100%; background: linear-gradient(90deg, #ffbb33, #ff8833); width: 0%; transition: width 0.3s; }
+  #oil-bar-wrap.hidden { display: none; }
+
+  /* Weapon bar */
+  #weapons {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    display: flex; justify-content: center; gap: 10px;
+    padding: 12px 12px calc(12px + env(safe-area-inset-bottom));
+    z-index: 10; background: linear-gradient(to top, rgba(0,0,0,0.7), transparent);
+  }
+  .weapon {
+    background: rgba(10, 30, 50, 0.9); border: 2px solid #2a5a7a; color: #8fffc4;
+    border-radius: 14px; padding: 9px 16px; font-size: 13px;
+    display: flex; flex-direction: column; align-items: center; min-width: 86px;
+    cursor: pointer; transition: all 0.15s;
+    box-shadow: 0 0 14px rgba(20, 180, 220, 0.15);
+  }
+  .weapon.active { border-color: #ffbb33; box-shadow: 0 0 22px rgba(255, 180, 50, 0.6); background: rgba(60, 30, 10, 0.9); color: #ffd466; }
+  .weapon.cd { opacity: 0.4; }
+  .weapon .ico { font-size: 22px; line-height: 1; }
+  .weapon .cnt { font-size: 11px; margin-top: 3px; opacity: 0.8; font-variant-numeric: tabular-nums; }
+  .weapon:active { transform: scale(0.95); }
+
+  /* Screens */
+  .screen {
+    position: fixed; inset: 0; z-index: 20;
+    display: flex; align-items: center; justify-content: center; flex-direction: column;
+    background: radial-gradient(ellipse at center, rgba(10, 37, 64, 0.97), rgba(2, 10, 24, 0.99));
+    padding: 20px; overflow-y: auto;
+  }
+  .screen.hidden { display: none; }
+
+  .title {
+    font-size: 38px; color: #ff4455; font-weight: 900; letter-spacing: 3px;
+    text-shadow: 0 0 20px #ff445588, 0 0 40px #ff445544;
+    margin-bottom: 4px; text-align: center;
+  }
+  .subtitle {
+    font-size: 12px; color: #6eeaa8; letter-spacing: 6px; margin-bottom: 20px;
+    text-align: center; opacity: 0.7;
+  }
+
+  .intel {
+    background: rgba(10, 30, 50, 0.8); border: 1px solid #2a5a7a; border-radius: 12px;
+    padding: 14px 18px; max-width: 440px; margin-bottom: 18px;
+    font-size: 12px; line-height: 1.7; color: #b8e8d4;
+  }
+  .intel .head { color: #ffbb33; font-weight: bold; margin-bottom: 6px; letter-spacing: 2px; }
+  .intel .dim { opacity: 0.6; }
+  .intel .tanker { color: #ffcc33; }
+  .intel .danger { color: #ff4455; }
+
+  .btn {
+    background: linear-gradient(135deg, #ff4455, #cc2244); color: white;
+    border: none; padding: 12px 32px; font-size: 16px; font-weight: bold;
+    border-radius: 10px; cursor: pointer; letter-spacing: 2px;
+    box-shadow: 0 4px 20px rgba(255, 68, 85, 0.5);
+    transition: transform 0.1s;
+  }
+  .btn:active { transform: scale(0.96); }
+  .btn.secondary { background: linear-gradient(135deg, #2a5a7a, #1a4060); box-shadow: 0 4px 14px rgba(40, 120, 160, 0.3); }
+  .btn.gold { background: linear-gradient(135deg, #ffbb33, #cc8822); box-shadow: 0 4px 16px rgba(255, 180, 50, 0.5); color: #2a1500; }
+  .btn.small { padding: 8px 16px; font-size: 13px; letter-spacing: 1px; }
+
+  .hint { font-size: 10px; color: #5a8fa0; margin-top: 12px; text-align: center; line-height: 1.5; }
+
+  /* Mode select */
+  .mode-grid { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; justify-content: center; max-width: 440px; }
+  .mode-card {
+    background: rgba(10, 30, 50, 0.9); border: 2px solid #2a5a7a; border-radius: 12px;
+    padding: 12px; min-width: 130px; cursor: pointer; transition: all 0.15s;
+    flex: 1; min-width: 120px; max-width: 200px;
+  }
+  .mode-card:active { transform: scale(0.97); }
+  .mode-card.hot { border-color: #ffbb33; box-shadow: 0 0 18px rgba(255, 180, 50, 0.3); }
+  .mode-card-title { font-size: 14px; font-weight: bold; color: #ffbb33; margin-bottom: 3px; }
+  .mode-card-desc { font-size: 10px; color: #8fbfcf; line-height: 1.4; }
+  .mode-card .badge { display: inline-block; background: #ff4455; color: white; padding: 1px 6px; border-radius: 8px; font-size: 9px; margin-left: 4px; }
+
+  /* Game over */
+  .result-rank {
+    font-size: 26px; color: #ffbb33; font-weight: 900;
+    text-shadow: 0 0 16px #ffbb3388; margin-bottom: 4px;
+  }
+  .result-score {
+    font-size: 52px; color: #6eeaa8; font-weight: 900;
+    text-shadow: 0 0 20px #6eeaa866;
+    font-variant-numeric: tabular-nums; line-height: 1;
+  }
+  .result-label { font-size: 10px; color: #5a8fa0; letter-spacing: 3px; margin-bottom: 8px; }
+  .result-flair { font-size: 13px; color: #b8e8d4; margin: 8px 0 16px; text-align: center; max-width: 360px; line-height: 1.6; }
+  .result-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; max-width: 340px; margin-bottom: 14px; }
+  .stat { background: rgba(10, 30, 50, 0.7); border: 1px solid #2a5a7a; border-radius: 8px; padding: 6px; text-align: center; }
+  .stat-val { color: #6eeaa8; font-weight: bold; font-size: 16px; font-variant-numeric: tabular-nums; }
+  .stat-lbl { color: #5a8fa0; font-size: 9px; letter-spacing: 1px; margin-top: 2px; }
+  .btn-row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-bottom: 10px; }
+
+  .hiscore-banner {
+    background: linear-gradient(90deg, #ffbb33, #ff8833, #ffbb33);
+    color: #331a00; padding: 5px 12px; border-radius: 20px; font-weight: bold;
+    font-size: 12px; margin-bottom: 6px; letter-spacing: 2px;
+    animation: pulse 1s infinite;
+  }
+  @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+
+  /* Leaderboard */
+  .lb-container {
+    background: rgba(10, 30, 50, 0.7); border: 1px solid #2a5a7a; border-radius: 10px;
+    padding: 10px; max-width: 360px; width: 100%; margin-top: 8px;
+  }
+  .lb-title { color: #ffbb33; font-size: 12px; font-weight: bold; letter-spacing: 2px; margin-bottom: 6px; text-align: center; }
+  .lb-row { display: flex; justify-content: space-between; font-size: 11px; padding: 3px 6px; border-bottom: 1px solid rgba(40, 100, 140, 0.3); }
+  .lb-row:last-child { border-bottom: none; }
+  .lb-row.mine { background: rgba(255, 180, 50, 0.15); border-radius: 4px; color: #ffcc66; }
+  .lb-rank { color: #5a8fa0; width: 28px; }
+  .lb-score { color: #6eeaa8; font-variant-numeric: tabular-nums; }
+  .lb-date { color: #5a8fa0; font-size: 10px; }
+
+  /* Taunt */
+  #taunt {
+    position: fixed; top: 22%; left: 50%; transform: translateX(-50%);
+    background: rgba(255, 68, 85, 0.92); color: white; padding: 7px 14px;
+    border-radius: 20px; font-size: 13px; font-weight: bold;
+    white-space: nowrap; pointer-events: none; z-index: 15;
+    opacity: 0; transition: opacity 0.3s;
+    box-shadow: 0 0 20px rgba(255, 68, 85, 0.6);
+    max-width: 90%;
+  }
+  #taunt.show { opacity: 1; }
+
+  /* Upgrade modal */
+  #upgrade-modal {
+    position: fixed; inset: 0; background: rgba(2, 10, 24, 0.85);
+    z-index: 30; display: flex; align-items: center; justify-content: center;
+    flex-direction: column; padding: 20px;
+  }
+  #upgrade-modal.hidden { display: none; }
+  .upgrade-head {
+    color: #ffbb33; font-size: 22px; font-weight: 900; letter-spacing: 3px;
+    text-shadow: 0 0 20px #ffbb3388; margin-bottom: 4px;
+    animation: upBounce 0.4s;
+  }
+  @keyframes upBounce { 0% { transform: scale(0.3); opacity: 0; } 60% { transform: scale(1.15); opacity: 1; } 100% { transform: scale(1); } }
+  .upgrade-sub { color: #6eeaa8; font-size: 11px; letter-spacing: 2px; margin-bottom: 18px; }
+  .upgrade-options { display: flex; flex-direction: column; gap: 10px; max-width: 360px; width: 100%; }
+  .up-card {
+    background: linear-gradient(135deg, rgba(60, 30, 10, 0.95), rgba(30, 20, 10, 0.95));
+    border: 2px solid #ffbb33; border-radius: 12px; padding: 12px 16px; cursor: pointer;
+    transition: all 0.15s; box-shadow: 0 0 14px rgba(255, 180, 50, 0.25);
+  }
+  .up-card:active { transform: scale(0.97); }
+  .up-card:hover { border-color: #ffdd55; box-shadow: 0 0 22px rgba(255, 220, 80, 0.4); }
+  .up-card .name { font-size: 15px; color: #ffdd77; font-weight: bold; margin-bottom: 3px; }
+  .up-card .desc { font-size: 12px; color: #e8d0a0; line-height: 1.5; }
+  .up-card .stack { float: right; font-size: 10px; color: #ffbb33; opacity: 0.7; }
+
+  /* Boot intro */
+  #boot-screen {
+    position: fixed; inset: 0; z-index: 100; background: #020a18;
+    display: flex; align-items: center; justify-content: center; flex-direction: column;
+    padding: 20px; font-family: 'Courier New', monospace;
+  }
+  #boot-screen.hidden { display: none; }
+  .boot-text { color: #6eeaa8; font-size: 13px; line-height: 1.8; max-width: 500px; white-space: pre-wrap; }
+  .boot-cursor::after { content: '_'; animation: blink 0.7s infinite; }
+  @keyframes blink { 0%,49% { opacity: 1; } 50%,100% { opacity: 0; } }
+
+  @media (max-width: 400px) {
+    .title { font-size: 30px; }
+    .weapon { padding: 8px 14px; min-width: 78px; }
+    .result-score { font-size: 44px; }
+    .mode-card { min-width: 110px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="game">
+  <canvas id="canvas"></canvas>
+
+  <div id="hud" class="hidden">
+    <div>
+      <div class="hud-box">
+        <div class="hud-label">分數 SCORE</div>
+        <div class="hud-val" id="score">0</div>
+      </div>
+    </div>
+    <div style="text-align:center">
+      <div class="hud-box">
+        <div class="hud-label">第 <span id="wave">1</span> 波 · 連擊 x<span id="combo">1</span></div>
+        <div class="hud-oil">💧 <span id="oil">0</span></div>
+      </div>
+    </div>
+    <div style="text-align:right">
+      <div class="hud-box">
+        <div class="hud-label" id="mode-label">革命衛隊</div>
+        <div id="lives"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="oil-bar-wrap" class="hidden">
+    <div id="oil-bar"></div>
+  </div>
+
+  <div id="weapons" class="hidden">
+    <div class="weapon active" id="btn-mine" data-w="mine">
+      <div class="ico">💣</div>
+      <div class="cnt">水雷 · <span id="mine-cd">就緒</span></div>
+    </div>
+    <div class="weapon" id="btn-missile" data-w="missile">
+      <div class="ico">🚀</div>
+      <div class="cnt">飛彈 · <span id="missile-ammo">5</span></div>
+    </div>
+  </div>
+
+  <div id="taunt"></div>
+
+  <!-- Upgrade modal -->
+  <div id="upgrade-modal" class="hidden">
+    <div class="upgrade-head">⚡ 戰術升級</div>
+    <div class="upgrade-sub">選擇一項強化（資源充足）</div>
+    <div class="upgrade-options" id="upgrade-options"></div>
+  </div>
+
+  <!-- Boot intro -->
+  <div id="boot-screen" class="hidden">
+    <div class="boot-text" id="boot-text"></div>
+  </div>
+
+  <!-- Start Screen -->
+  <div class="screen" id="start">
+    <div class="title">荷姆茲封鎖戰</div>
+    <div class="subtitle">HORMUZ BLOCKADE</div>
+
+    <div class="mode-grid">
+      <div class="mode-card hot" data-mode="iran">
+        <div class="mode-card-title">🇮🇷 伊朗防禦<span class="badge">主打</span></div>
+        <div class="mode-card-desc">佈雷 + 反艦飛彈<br>阻擋美軍艦隊</div>
+      </div>
+      <div class="mode-card" data-mode="daily">
+        <div class="mode-card-title">📅 每日挑戰</div>
+        <div class="mode-card-desc" id="daily-desc">載入中...</div>
+      </div>
+      <div class="mode-card" data-mode="usa">
+        <div class="mode-card-title">🇺🇸 美軍突破</div>
+        <div class="mode-card-desc">駕駛艦隊閃避水雷<br>強行通過海峽</div>
+      </div>
+    </div>
+
+    <div class="intel" id="intel-box">
+      <div class="head">⚠️ 作戰指令</div>
+      美軍第五艦隊來勢洶洶，你是<b style="color:#ff8833">伊朗革命衛隊海軍指揮官</b>。
+      <br><br>
+      <span class="dim">💣 水雷：點擊海面佈雷（冷卻制）</span><br>
+      <span class="dim">🚀 飛彈：點擊目標發射（彈藥制）</span><br>
+      <span class="dim">⚡ 每 100 石油可選戰術升級</span><br>
+      <span class="dim">⚔️ 擊沉航母送 2 飛彈、大量石油</span><br>
+      <span class="tanker">🛢️ 民用油輪誤擊 -100 分 + 失連擊</span><br>
+      <span class="danger">❤️ 一艦通過扣 1 條命，共 3 條</span>
+    </div>
+
+    <button class="btn" id="start-btn">▶ 開始封鎖</button>
+    <button class="btn secondary small" id="lb-btn" style="margin-top:10px">🏆 歷史戰績</button>
+    <div class="hint">點擊海面操作武器 · 支援觸控 / 滑鼠</div>
+  </div>
+
+  <!-- Leaderboard Screen -->
+  <div class="screen hidden" id="leaderboard-screen">
+    <div style="font-size: 22px; color: #ffbb33; font-weight: 900; letter-spacing: 3px; margin-bottom: 4px;">🏆 歷史戰績</div>
+    <div style="color: #6eeaa8; font-size: 11px; letter-spacing: 3px; margin-bottom: 16px;">LOCAL RECORDS</div>
+    <div id="leaderboard-content"></div>
+    <button class="btn secondary" id="lb-back" style="margin-top: 16px">返回</button>
+  </div>
+
+  <!-- Game Over Screen -->
+  <div class="screen hidden" id="gameover">
+    <div id="hiscore-banner" class="hiscore-banner hidden">🏆 新高分紀錄</div>
+    <div class="result-rank" id="rank-title">—</div>
+    <div class="result-label">最終分數</div>
+    <div class="result-score" id="final-score">0</div>
+    <div class="result-flair" id="flair-text">—</div>
+    <div class="result-stats">
+      <div class="stat"><div class="stat-val" id="s-wave">0</div><div class="stat-lbl">達到波次</div></div>
+      <div class="stat"><div class="stat-val" id="s-kills">0</div><div class="stat-lbl">擊沉艦艇</div></div>
+      <div class="stat"><div class="stat-val" id="s-carriers">0</div><div class="stat-lbl">擊沉航母</div></div>
+      <div class="stat"><div class="stat-val" id="s-tankers">0</div><div class="stat-lbl">誤擊油輪</div></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn" id="retry-btn">再來一局</button>
+      <button class="btn secondary" id="share-btn">📸 分享戰果</button>
+      <button class="btn secondary" id="menu-btn">主選單</button>
+    </div>
+    <div class="hint">本機最高分：<span id="best-score">0</span></div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// =========================== SAFE STORAGE ===========================
+// localStorage throws in Safari private mode, some WebViews, and sandboxed
+// iframes. Fall back to an in-memory store so the game never hard-crashes.
+const Store = (() => {
+  let backend = null;
+  try {
+    const t = '__hb_test__';
+    window.localStorage.setItem(t, '1');
+    window.localStorage.removeItem(t);
+    backend = window.localStorage;
+  } catch (e) {
+    backend = null;
+  }
+  const mem = Object.create(null);
+  return {
+    available: backend !== null,
+    get(k) {
+      try { return backend ? backend.getItem(k) : (k in mem ? mem[k] : null); }
+      catch (e) { return k in mem ? mem[k] : null; }
+    },
+    set(k, v) {
+      try { if (backend) backend.setItem(k, String(v)); else mem[k] = String(v); }
+      catch (e) { mem[k] = String(v); }
+    },
+  };
+})();
+
+// =========================== CONSTANTS ===========================
+const DAILY_CHALLENGES = [
+  { id: 0, name: '油輪地獄', emoji: '🛢️', desc: '油輪數量 x3，考驗精準度', modifier: { tankerRate: 0.45 } },
+  { id: 1, name: '航母閃電', emoji: '⚡', desc: '航母提早現身，擊沉加倍分', modifier: { carrierBoost: true, scoreMulCarrier: 2 } },
+  { id: 2, name: '極速模式', emoji: '💨', desc: '美艦速度 x1.5，反應力考驗', modifier: { speedMul: 1.5 } },
+  { id: 3, name: '水雷戰爭', emoji: '💣', desc: '禁用飛彈，只靠水雷（冷卻減半）', modifier: { noMissile: true, mineCdMul: 0.5 } },
+  { id: 4, name: '飛彈雨', emoji: '🚀', desc: '飛彈無限，水雷禁用', modifier: { noMine: true, infiniteMissile: true } },
+  { id: 5, name: '全艦隊', emoji: '⚔️', desc: '全部是巡洋艦與航母，強敵如雲', modifier: { onlyHeavy: true } },
+  { id: 6, name: '一命封鎖', emoji: '💀', desc: '只有 1 條命，分數 x2', modifier: { oneLife: true, scoreMul: 2 } },
+];
+
+function getDailyChallenge() {
+  const now = new Date();
+  const dayKey = now.getFullYear() * 1000 + (now.getMonth() + 1) * 50 + now.getDate();
+  return DAILY_CHALLENGES[dayKey % DAILY_CHALLENGES.length];
+}
+
+const UPGRADES = [
+  { id: 'mine_range',  name: '💣 水雷範圍 +30%', desc: '感應範圍與爆炸範圍擴大', apply: s => { s.mineRange *= 1.3; s.mineBlast *= 1.3; } },
+  { id: 'mine_cd',     name: '💣 水雷冷卻 -30%', desc: '快速佈雷，封鎖海峽', apply: s => { s.mineCdMul *= 0.7; } },
+  { id: 'missile_cap', name: '🚀 飛彈容量 +4',   desc: '攜帶更多反艦飛彈', apply: s => { s.missileMax += 4; s.missileAmmo += 4; } },
+  { id: 'missile_aoe', name: '🚀 飛彈威力 +40%', desc: '更大爆炸、更高傷害', apply: s => { s.missileBlast *= 1.4; s.missileDmg += 1; } },
+  { id: 'missile_dbl', name: '🚀 雙發飛彈',      desc: '每次發射兩枚追蹤彈', apply: s => { s.missileDouble = true; } },
+  { id: 'combo_time',  name: '🔥 連擊時間 +50%', desc: '連擊更不易斷，倍率更高', apply: s => { s.comboDur *= 1.5; } },
+  { id: 'score_mul',   name: '💰 分數倍率 +15%', desc: '所有得分強化', apply: s => { s.scoreMul *= 1.15; } },
+  { id: 'shield',      name: '❤️ 恢復 1 條命',   desc: '真主保佑的奇蹟', apply: s => { if (G.lives < 5) G.lives++; renderLives(); } },
+  { id: 'oil_gain',    name: '💧 石油產量 +25%', desc: '升級更快來', apply: s => { s.oilMul *= 1.25; } },
+];
+
+// US mode has its own upgrade pool — evasion and survival focused
+const US_UPGRADES = [
+  { id: 'us_armor',  name: '🛡️ 複合裝甲',     desc: '受擊後無敵時間 +60%', apply: s => { s.invulnDur *= 1.6; } },
+  { id: 'us_agile',  name: '💨 機動性 +35%',   desc: '轉向反應更靈敏，閃避更快', apply: s => { s.usAgility *= 1.35; } },
+  { id: 'us_stealth',name: '📐 匿蹤塗層',     desc: '碰撞體積縮小 15%，更難被擊中', apply: s => { if (G.usShip) G.usShip.size *= 0.85; } },
+  { id: 'us_repair', name: '🔧 緊急搶修',     desc: '恢復 1 條命', apply: s => { if (G.lives < 5) G.lives++; renderLives(); } },
+  { id: 'us_bonus',  name: '💰 航行獎金 +25%', desc: '分數累積加快', apply: s => { s.scoreMul *= 1.25; } },
+  { id: 'us_radar',  name: '📡 預警雷達',     desc: '石油產量 +30%，升級更快', apply: s => { s.oilMul *= 1.3; } },
+];
+
+// =========================== GAME STATE ===========================
+const G = {
+  state: 'menu',
+  mode: 'iran', // iran | daily | usa
+  dailyChallenge: null,
+  modifier: {},
+  score: 0, lives: 3, wave: 1,
+  waveKills: 0, waveTarget: 5,
+  combo: 1, comboTimer: 0,
+  kills: 0, carriers: 0, tankers: 0,
+  weapon: 'mine',
+  mineCooldown: 0,
+  missileAmmo: 5,
+  spawnTimer: 0,
+  time: 0,
+  oil: 0, oilForUpgrade: 100, upgradesOwned: [],
+  screenShake: 0,
+  paused: false, autoPaused: false,
+  invuln: 0,
+  // Stats (modifiable by upgrades)
+  stats: {
+    mineRange: 40, mineBlast: 50, mineCdMul: 1,
+    missileMax: 5, missileBlast: 70, missileDmg: 2, missileDouble: false,
+    comboDur: 180, scoreMul: 1, oilMul: 1,
+    invulnDur: 60, usAgility: 1,
+  },
+  // US mode specific
+  usShip: null,
+};
+
+const ships = [];
+const mines = [];
+const missiles = [];
+const particles = [];
+const floaters = [];
+const enemyMines = []; // for US mode
+const enemyMissiles = []; // for US mode
+
+// =========================== CANVAS ===========================
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+let W = 0, H = 0, DPR = 1;
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth;
+  H = window.innerHeight;
+  canvas.width = W * DPR;
+  canvas.height = H * DPR;
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+window.addEventListener('resize', resize);
+resize();
+
+// =========================== SHIP TEMPLATES ===========================
+const SHIP_TYPES = {
+  scout:     { speed: 1.6, hp: 1,  score: 10,  size: 12, color: '#ff6677', glow: '#ff445566', label: '偵察艇' },
+  destroyer: { speed: 1.1, hp: 2,  score: 30,  size: 18, color: '#ff4455', glow: '#ff445588', label: '驅逐艦' },
+  cruiser:   { speed: 0.7, hp: 4,  score: 80,  size: 26, color: '#dd2233', glow: '#dd223388', label: '巡洋艦' },
+  carrier:   { speed: 0.4, hp: 12, score: 500, size: 40, color: '#aa1122', glow: '#aa112299', label: '航空母艦' },
+  tanker:    { speed: 0.6, hp: 999,score: -100,size: 32, color: '#ffcc33', glow: '#ffcc3388', label: '民用油輪' },
+};
+
+const FUNNY_NAMES = {
+  destroyer: ['USS Big Mac', 'USS Freedom Fries', 'USS McEagle', 'USS Pentagon Pizza', 'USS Coca-Cola', 'USS Boeing 737'],
+  cruiser:   ['USS Uncle Sam', 'USS Dollar Bill', 'USS Trump Tower', 'USS Statue Liberty', 'USS Oil Thirst'],
+  carrier:   ['USS 喬拜登號', 'USS 川普號', 'USS 老鷹尖叫號', 'USS 五角大廈號', 'USS 自由女神號', 'USS 石油飢渴號', 'USS 漢堡王號'],
+  scout:     ['USS Drone', 'USS Spy-Bot', 'USS Peek-a-Boo', 'USS Backseat'],
+  tanker:    ['MV Seaborne', 'MV Oil Queen', 'MV Gulf Trader', 'MV Neutral Flag', 'MV Cargo Express'],
+};
+
+const TAUNTS_KILL = [
+  '真主至大！🎯', '一艦接一艦！', '美軍顫抖吧！', '革命衛隊出擊！',
+  '擊沉！💥', 'BOOM！', '霸權終結者！', '石油守衛戰！', '海峽不可過！',
+];
+const TAUNTS_CARRIER = [
+  '航母沉了！！歷史性一刻！🇮🇷', '五角大廈在哭', '這一艦值千億美元 💰',
+  '推特爆炸中...', '川普發推譴責你！', '道瓊指數跳水 📉',
+];
+const TAUNTS_TANKER = [
+  '混蛋！那是民用油輪！', '國際法庭見你！', '石油價格暴漲中 📈',
+  '你剛得罪了半個中東！', '新聞快報：你登上 CNN 頭版',
+];
+const TAUNTS_COMBO = [
+  '連擊 x{n}！🔥', '手感發燙！', '瘋狂火力！', '美軍潰敗！', '停不下來！',
+];
+const TAUNTS_WAVE = [
+  '第 {n} 波來襲！', '增援艦隊到達！', '警報！警報！', '雷達大量反應！',
+];
+
+// =========================== UI REFS ===========================
+const hud = document.getElementById('hud');
+const weaponsBar = document.getElementById('weapons');
+const oilBarWrap = document.getElementById('oil-bar-wrap');
+const oilBarEl = document.getElementById('oil-bar');
+const startScreen = document.getElementById('start');
+const gameoverScreen = document.getElementById('gameover');
+const lbScreen = document.getElementById('leaderboard-screen');
+const upgradeModal = document.getElementById('upgrade-modal');
+const bootScreen = document.getElementById('boot-screen');
+const bootText = document.getElementById('boot-text');
+const scoreEl = document.getElementById('score');
+const waveEl = document.getElementById('wave');
+const comboEl = document.getElementById('combo');
+const oilEl = document.getElementById('oil');
+const livesEl = document.getElementById('lives');
+const mineCdEl = document.getElementById('mine-cd');
+const missileAmmoEl = document.getElementById('missile-ammo');
+const btnMine = document.getElementById('btn-mine');
+const btnMissile = document.getElementById('btn-missile');
+const tauntEl = document.getElementById('taunt');
+const modeLabelEl = document.getElementById('mode-label');
+
+// =========================== INPUT ===========================
+btnMine.addEventListener('click', () => selectWeapon('mine'));
+btnMissile.addEventListener('click', () => selectWeapon('missile'));
+
+function selectWeapon(w) {
+  if (G.mode === 'usa') return; // US mode uses different controls
+  if (w === 'missile' && G.modifier.noMissile) return;
+  if (w === 'mine' && G.modifier.noMine) return;
+  G.weapon = w;
+  btnMine.classList.toggle('active', w === 'mine');
+  btnMissile.classList.toggle('active', w === 'missile');
+  beep(w === 'mine' ? 320 : 440, 0.04);
+}
+
+canvas.addEventListener('pointerdown', onPointer);
+canvas.addEventListener('pointermove', onPointerMove);
+let pointerActive = false;
+
+function onPointer(e) {
+  if (G.state !== 'playing' || G.paused) return;
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+
+  if (G.mode === 'usa') {
+    // In US mode, pointer controls ship vertical position
+    pointerActive = true;
+    if (G.usShip) G.usShip.targetY = y;
+    return;
+  }
+
+  // Iran/daily mode
+  if (y < 60 || y > H - 90) return;
+  if (x < W * 0.05) return;
+  if (G.weapon === 'mine') fireMine(x, y);
+  else fireMissile(x, y);
+}
+
+function onPointerMove(e) {
+  if (G.state !== 'playing' || G.mode !== 'usa' || G.paused) return;
+  // Mouse: hover steers. Touch: must be dragging.
+  const isTouch = e.pointerType === 'touch';
+  if (isTouch && !pointerActive) return;
+  const rect = canvas.getBoundingClientRect();
+  const y = e.clientY - rect.top;
+  if (G.usShip) G.usShip.targetY = Math.max(80, Math.min(H - 100, y));
+}
+
+window.addEventListener('pointerup', () => { pointerActive = false; });
+
+// =========================== SOUND ===========================
+let audioCtx = null;
+function initAudio() {
+  if (!audioCtx) {
+    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+  }
+}
+function beep(freq, dur, type = 'square', vol = 0.08) {
+  if (!audioCtx) return;
+  try {
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = type;
+    o.frequency.value = freq;
+    g.gain.value = vol;
+    g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + dur);
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(); o.stop(audioCtx.currentTime + dur);
+  } catch(e) {}
+}
+function explodeSound() {
+  if (!audioCtx) return;
+  try {
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = 'sawtooth';
+    o.frequency.value = 120;
+    o.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 0.3);
+    g.gain.value = 0.15;
+    g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.3);
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(); o.stop(audioCtx.currentTime + 0.3);
+  } catch(e) {}
+}
+function alarmSound() { beep(880, 0.1, 'square', 0.1); setTimeout(() => beep(660, 0.1, 'square', 0.1), 120); }
+function upgradeSound() {
+  beep(440, 0.08, 'sine', 0.1);
+  setTimeout(() => beep(660, 0.08, 'sine', 0.1), 80);
+  setTimeout(() => beep(880, 0.15, 'sine', 0.12), 160);
+}
+
+// =========================== WEAPONS ===========================
+function fireMine(x, y) {
+  if (G.mineCooldown > 0) { beep(180, 0.05, 'square', 0.05); return; }
+  mines.push({
+    x, y, radius: 14, timer: 900, pulse: 0,
+    triggerRange: G.stats.mineRange, blast: G.stats.mineBlast,
+  });
+  G.mineCooldown = 90 * G.stats.mineCdMul;
+  beep(500, 0.08, 'triangle');
+}
+
+function fireMissile(tx, ty) {
+  if (G.missileAmmo <= 0 && !G.modifier.infiniteMissile) { beep(180, 0.05, 'square', 0.05); return; }
+  const launch = (offset = 0) => {
+    const sx = 20;
+    const sy = H * 0.5 + offset;
+    // Wing missiles land slightly spread around the target for wider coverage
+    const spread = offset === 0 ? 0 : 22;
+    const missile = {
+      x: sx, y: sy,
+      tx: tx + (Math.random() - 0.5) * spread,
+      ty: ty + (offset === 0 ? 0 : Math.sign(offset) * spread * 0.8),
+      vx: 0, vy: 0, speed: 7, trail: [],
+      blast: G.stats.missileBlast, dmg: G.stats.missileDmg,
+    };
+    missiles.push(missile);
+    const dx = missile.tx - sx, dy = missile.ty - sy;
+    const d = Math.hypot(dx, dy) || 1;
+    missile.vx = (dx / d) * missile.speed;
+    missile.vy = (dy / d) * missile.speed;
+  };
+  launch(0);
+  if (G.stats.missileDouble) {
+    launch(30);
+    launch(-30);
+  }
+  if (!G.modifier.infiniteMissile) G.missileAmmo--;
+  beep(660, 0.2, 'sawtooth', 0.08);
+}
+
+// =========================== SPAWN ===========================
+function spawnShip() {
+  const w = G.wave;
+  const r = Math.random();
+  const mod = G.modifier;
+
+  let type;
+  const tankerRate = mod.tankerRate || 0.18;
+
+  if (mod.onlyHeavy) {
+    const er = Math.random();
+    type = er < tankerRate ? 'tanker' : er < tankerRate + 0.45 ? 'cruiser' : 'carrier';
+  } else if (r < tankerRate) {
+    type = 'tanker';
+  } else {
+    const er = Math.random() * 100;
+    const cBoost = mod.carrierBoost ? 20 : 0;
+    if (w <= 1) {
+      type = er < 60 - cBoost ? 'scout' : er < 95 - cBoost ? 'destroyer' : 'carrier';
+    } else if (w === 2) {
+      type = er < 30 ? 'scout' : er < 70 - cBoost ? 'destroyer' : er < 92 - cBoost ? 'cruiser' : 'carrier';
+    } else if (w === 3) {
+      type = er < 15 ? 'scout' : er < 50 ? 'destroyer' : er < 85 - cBoost ? 'cruiser' : 'carrier';
+    } else if (w === 4) {
+      type = er < 10 ? 'scout' : er < 40 ? 'destroyer' : er < 75 - cBoost ? 'cruiser' : 'carrier';
+    } else {
+      type = er < 5 ? 'scout' : er < 30 ? 'destroyer' : er < 65 - cBoost ? 'cruiser' : 'carrier';
+    }
+  }
+
+  const t = SHIP_TYPES[type];
+  const names = FUNNY_NAMES[type];
+  const name = names[Math.floor(Math.random() * names.length)];
+  const y = 80 + Math.random() * (H - 200);
+  const speedMul = (mod.speedMul || 1);
+  ships.push({
+    type, name,
+    x: W + 30, y,
+    speed: t.speed * (0.9 + Math.random() * 0.2) * (1 + (G.wave - 1) * 0.06) * speedMul,
+    hp: t.hp, maxHp: t.hp,
+    size: t.size,
+    wiggle: Math.random() * Math.PI * 2,
+    hit: 0,
+  });
+}
+
+// =========================== UPDATE ===========================
+function update() {
+  G.time++;
+
+  if (G.mineCooldown > 0) G.mineCooldown--;
+  if (G.invuln > 0) G.invuln--;
+
+  // Hard cap particles so low-end phones don't choke during big explosions
+  if (particles.length > 400) particles.splice(0, particles.length - 400);
+
+  if (G.comboTimer > 0) {
+    G.comboTimer--;
+    if (G.comboTimer === 0) G.combo = 1;
+  }
+
+  if (G.screenShake > 0) G.screenShake *= 0.85;
+
+  if (G.mode === 'usa') {
+    updateUSMode();
+  } else {
+    updateIranMode();
+  }
+
+  // Particles
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx; p.y += p.vy;
+    p.vx *= 0.95; p.vy *= 0.95;
+    p.life--;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+
+  // Floaters
+  for (let i = floaters.length - 1; i >= 0; i--) {
+    const f = floaters[i];
+    f.y -= 0.8;
+    f.life--;
+    if (f.life <= 0) floaters.splice(i, 1);
+  }
+
+  // Update UI
+  scoreEl.textContent = G.score;
+  waveEl.textContent = G.wave;
+  comboEl.textContent = G.combo;
+  oilEl.textContent = G.oil;
+  oilBarEl.style.width = Math.min(100, (G.oil / G.oilForUpgrade) * 100) + '%';
+  if (G.mode !== 'usa') {
+    mineCdEl.textContent = G.mineCooldown > 0 ? ((G.mineCooldown / 60).toFixed(1) + 's') : '就緒';
+    btnMine.classList.toggle('cd', G.mineCooldown > 0 || G.modifier.noMine);
+    missileAmmoEl.textContent = G.modifier.infiniteMissile ? '∞' : G.missileAmmo;
+    btnMissile.classList.toggle('cd', (!G.modifier.infiniteMissile && G.missileAmmo === 0) || G.modifier.noMissile);
+  }
+}
+
+function updateIranMode() {
+  // Spawning
+  G.spawnTimer--;
+  if (G.spawnTimer <= 0) {
+    spawnShip();
+    const base = Math.max(40, 110 - G.wave * 8 - Math.floor(G.time / 600) * 4);
+    G.spawnTimer = base + Math.random() * 30;
+  }
+
+  // Wave progress
+  if (G.waveKills >= G.waveTarget) {
+    G.wave++;
+    G.waveKills = 0;
+    G.waveTarget = 5 + G.wave * 2;
+    showTaunt(randOf(TAUNTS_WAVE).replace('{n}', G.wave), '#ff8833');
+    alarmSound();
+    G.screenShake = 6;
+  }
+
+  // Ships
+  for (let i = ships.length - 1; i >= 0; i--) {
+    const s = ships[i];
+    s.x -= s.speed;
+    s.wiggle += 0.05;
+    if (s.hit > 0) s.hit--;
+
+    if (s.x < W * 0.06) {
+      if (s.type === 'tanker') {
+        ships.splice(i, 1);
+        continue;
+      }
+      loseLife();
+      spawnExplosion(W * 0.05, s.y, 30, '#ff4455');
+      ships.splice(i, 1);
+      continue;
+    }
+
+    for (let j = mines.length - 1; j >= 0; j--) {
+      const m = mines[j];
+      const d = Math.hypot(s.x - m.x, s.y - m.y);
+      if (d < s.size + m.triggerRange) {
+        detonateMine(j);
+        break;
+      }
+    }
+  }
+
+  // Mines
+  for (let i = mines.length - 1; i >= 0; i--) {
+    const m = mines[i];
+    m.pulse += 0.12;
+    m.timer--;
+    if (m.timer <= 0) {
+      spawnExplosion(m.x, m.y, 15, '#ffaa33');
+      mines.splice(i, 1);
+    }
+  }
+
+  // Missiles
+  for (let i = missiles.length - 1; i >= 0; i--) {
+    const m = missiles[i];
+    m.trail.push({ x: m.x, y: m.y, life: 12 });
+    if (m.trail.length > 12) m.trail.shift();
+    for (const t of m.trail) t.life--;
+    m.x += m.vx; m.y += m.vy;
+    const dx = m.tx - m.x, dy = m.ty - m.y;
+    if (Math.hypot(dx, dy) < 8 || m.x < 0 || m.x > W || m.y < 0 || m.y > H) {
+      missileExplode(m.x, m.y, m.blast, m.dmg);
+      missiles.splice(i, 1);
+    }
+  }
+}
+
+function updateUSMode() {
+  if (!G.usShip) return;
+  const s = G.usShip;
+
+  // Move ship toward target Y (agility upgradeable)
+  const dy = (s.targetY || s.y) - s.y;
+  s.y += dy * 0.12 * G.stats.usAgility;
+
+  // Advance = forward through strait
+  s.traveled += 0.5 + G.wave * 0.1;
+
+  // Score + oil accrue from surviving distance
+  if (G.time % 60 === 0) {
+    G.score += Math.floor(5 * G.wave * G.stats.scoreMul);
+    G.oil += Math.floor(8 * G.stats.oilMul);
+    if (G.oil >= G.oilForUpgrade) {
+      G.oil -= G.oilForUpgrade;
+      G.oilForUpgrade = Math.floor(G.oilForUpgrade * 1.4);
+      setTimeout(showUpgrade, 200);
+    }
+  }
+
+  // Wave escalation: every 400 frames
+  if (s.traveled > G.wave * 500) {
+    G.wave++;
+    G.waveTarget = 5 + G.wave * 2;
+    showTaunt(`通過 ${G.wave - 1} 個防線！`, '#6eeaa8');
+    G.score += 200;
+    G.screenShake = 4;
+    alarmSound();
+  }
+
+  // Spawn enemy mines and missiles
+  G.spawnTimer--;
+  if (G.spawnTimer <= 0) {
+    if (Math.random() < 0.6) {
+      // Spawn mine ahead
+      enemyMines.push({
+        x: W + 20,
+        y: 80 + Math.random() * (H - 200),
+        speed: 1 + G.wave * 0.1,
+        size: 10,
+        pulse: 0,
+      });
+    } else {
+      // Spawn missile from right edge
+      const ey = 80 + Math.random() * (H - 200);
+      const dx = s.x - W - 20;
+      const dy2 = s.y - ey;
+      const d = Math.hypot(dx, dy2) || 1;
+      enemyMissiles.push({
+        x: W + 20, y: ey,
+        vx: (dx / d) * 4,
+        vy: (dy2 / d) * 4,
+        trail: [],
+      });
+    }
+    G.spawnTimer = Math.max(20, 70 - G.wave * 4);
+  }
+
+  // Update enemy mines
+  for (let i = enemyMines.length - 1; i >= 0; i--) {
+    const m = enemyMines[i];
+    m.x -= m.speed;
+    m.pulse += 0.12;
+
+    // Collision with US ship
+    const d = Math.hypot(m.x - s.x, m.y - s.y);
+    if (d < s.size + m.size) {
+      spawnExplosion(m.x, m.y, 30, '#ffaa33');
+      explodeSound();
+      enemyMines.splice(i, 1);
+      loseLife();
+      continue;
+    }
+
+    // Off screen
+    if (m.x < -30) enemyMines.splice(i, 1);
+  }
+
+  // Update enemy missiles
+  for (let i = enemyMissiles.length - 1; i >= 0; i--) {
+    const m = enemyMissiles[i];
+    m.trail.push({ x: m.x, y: m.y });
+    if (m.trail.length > 10) m.trail.shift();
+    m.x += m.vx; m.y += m.vy;
+
+    const d = Math.hypot(m.x - s.x, m.y - s.y);
+    if (d < s.size + 6) {
+      spawnExplosion(m.x, m.y, 30, '#ff4455');
+      explodeSound();
+      enemyMissiles.splice(i, 1);
+      loseLife();
+      continue;
+    }
+    if (m.x < -30 || m.y < -30 || m.y > H + 30) enemyMissiles.splice(i, 1);
+  }
+
+  // Ship position
+  s.wiggle += 0.04;
+}
+
+function detonateMine(idx) {
+  const m = mines[idx];
+  spawnExplosion(m.x, m.y, 25, '#ffaa33');
+  explodeSound();
+  G.screenShake = 3;
+  damageShipsInRadius(m.x, m.y, m.blast, 1);
+  mines.splice(idx, 1);
+}
+
+function missileExplode(x, y, blast, dmg) {
+  spawnExplosion(x, y, blast * 0.6, '#ff6633');
+  explodeSound();
+  G.screenShake = 4;
+  damageShipsInRadius(x, y, blast, dmg);
+}
+
+function damageShipsInRadius(x, y, r, dmg) {
+  for (let i = ships.length - 1; i >= 0; i--) {
+    const s = ships[i];
+    const d = Math.hypot(s.x - x, s.y - y);
+    if (d < r + s.size) {
+      if (s.type === 'tanker') {
+        G.score = Math.max(0, G.score - 100);
+        G.tankers++;
+        G.combo = 1;
+        showTaunt(randOf(TAUNTS_TANKER), '#ffcc33');
+        floatText(s.x, s.y, '-100 油輪！', '#ffcc33');
+        spawnExplosion(s.x, s.y, 35, '#ffcc33');
+        ships.splice(i, 1);
+        continue;
+      }
+      s.hp -= dmg;
+      s.hit = 8;
+      if (s.hp <= 0) {
+        killShip(s);
+        ships.splice(i, 1);
+      }
+    }
+  }
+}
+
+function killShip(s) {
+  const t = SHIP_TYPES[s.type];
+  G.combo = Math.min(G.combo + 1, 20);
+  G.comboTimer = G.stats.comboDur;
+  const carrierMul = G.modifier.scoreMulCarrier && s.type === 'carrier' ? G.modifier.scoreMulCarrier : 1;
+  const modeMul = G.modifier.scoreMul || 1;
+  const gained = Math.floor(t.score * G.combo * G.stats.scoreMul * carrierMul * modeMul);
+  G.score += gained;
+  G.kills++;
+  G.waveKills++;
+
+  // Oil
+  const oilGain = Math.floor(t.score * 0.1 * G.stats.oilMul);
+  G.oil += oilGain;
+
+  floatText(s.x, s.y, '+' + gained, '#6eeaa8');
+  spawnExplosion(s.x, s.y, t.size + 10, t.color);
+
+  if (s.type === 'carrier') {
+    G.carriers++;
+    showTaunt(randOf(TAUNTS_CARRIER), '#ffbb33');
+    G.screenShake = 10;
+    G.missileAmmo = Math.min(G.missileAmmo + 2, G.stats.missileMax);
+  } else if (G.combo >= 5 && G.combo % 3 === 0) {
+    showTaunt(randOf(TAUNTS_COMBO).replace('{n}', G.combo), '#6eeaa8');
+  } else if (Math.random() < 0.15) {
+    showTaunt(randOf(TAUNTS_KILL), '#6eeaa8');
+  }
+
+  if (Math.random() < 0.35 && G.missileAmmo < G.stats.missileMax) G.missileAmmo++;
+
+  // Upgrade trigger
+  if (G.oil >= G.oilForUpgrade) {
+    G.oil -= G.oilForUpgrade;
+    G.oilForUpgrade = Math.floor(G.oilForUpgrade * 1.4);
+    setTimeout(showUpgrade, 200);
+  }
+}
+
+function loseLife() {
+  // Invulnerability window — prevents losing 3 lives to one mine cluster
+  if (G.invuln > 0) return;
+  G.invuln = G.stats.invulnDur;
+  G.lives--;
+  renderLives();
+  alarmSound();
+  G.screenShake = 12;
+  G.combo = 1;
+  if (G.mode === 'usa') {
+    showTaunt('⚠️ 艦體受損！', '#ff4455');
+  } else {
+    showTaunt('⚠️ 美艦突破封鎖！', '#ff4455');
+  }
+  if (G.lives <= 0) endGame();
+}
+
+function spawnExplosion(x, y, size, color) {
+  const n = Math.floor(size / 2);
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const s = 1 + Math.random() * 4;
+    particles.push({
+      x, y,
+      vx: Math.cos(a) * s, vy: Math.sin(a) * s,
+      life: 20 + Math.random() * 20,
+      size: 2 + Math.random() * 3,
+      color,
+    });
+  }
+}
+
+function floatText(x, y, text, color) {
+  floaters.push({ x, y, text, color, life: 60 });
+}
+
+function showTaunt(text, color) {
+  tauntEl.textContent = text;
+  tauntEl.style.color = 'white';
+  tauntEl.style.background = color === '#ffcc33' ? 'rgba(200, 140, 20, 0.95)'
+                           : color === '#6eeaa8' ? 'rgba(30, 140, 80, 0.95)'
+                           : color === '#ffbb33' ? 'rgba(220, 150, 30, 0.95)'
+                           : color === '#ff8833' ? 'rgba(200, 100, 30, 0.95)'
+                           : 'rgba(200, 50, 60, 0.95)';
+  tauntEl.classList.add('show');
+  clearTimeout(showTaunt._t);
+  showTaunt._t = setTimeout(() => tauntEl.classList.remove('show'), 1600);
+}
+
+function randOf(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+// =========================== UPGRADE MODAL ===========================
+function showUpgrade() {
+  if (G.state !== 'playing') return;
+  G.paused = true;
+  // Mode-specific upgrade pool
+  const pool = G.mode === 'usa' ? [...US_UPGRADES] : [...UPGRADES];
+  const healIds = ['shield', 'us_repair'];
+  const choices = [];
+  for (let i = 0; i < 3 && pool.length > 0; i++) {
+    const idx = Math.floor(Math.random() * pool.length);
+    const chosen = pool[idx];
+    pool.splice(idx, 1);
+    if (healIds.includes(chosen.id) && G.lives >= 5) { i--; continue; }
+    choices.push(chosen);
+  }
+  const optsEl = document.getElementById('upgrade-options');
+  optsEl.innerHTML = '';
+  choices.forEach(u => {
+    const card = document.createElement('div');
+    card.className = 'up-card';
+    const stackCount = G.upgradesOwned.filter(id => id === u.id).length;
+    card.innerHTML = `
+      <span class="stack">${stackCount > 0 ? 'LV.' + (stackCount + 1) : '新'}</span>
+      <div class="name">${u.name}</div>
+      <div class="desc">${u.desc}</div>
+    `;
+    card.addEventListener('click', () => {
+      u.apply(G.stats);
+      G.upgradesOwned.push(u.id);
+      hideUpgrade();
+      upgradeSound();
+      showTaunt('⚡ ' + u.name + '！', '#ffbb33');
+    });
+    optsEl.appendChild(card);
+  });
+  upgradeModal.classList.remove('hidden');
+  upgradeSound();
+}
+
+function hideUpgrade() {
+  upgradeModal.classList.add('hidden');
+  G.paused = false;
+}
+
+// =========================== RENDER ===========================
+function render() {
+  let sx = 0, sy = 0;
+  if (G.screenShake > 0.5) {
+    sx = (Math.random() - 0.5) * G.screenShake;
+    sy = (Math.random() - 0.5) * G.screenShake;
+  }
+  ctx.save();
+  ctx.translate(sx, sy);
+  ctx.clearRect(-20, -20, W + 40, H + 40);
+  drawRadarBackground();
+
+  if (G.mode === 'usa') {
+    drawUSMode();
+  } else {
+    drawCoast();
+    for (const m of mines) drawMine(m);
+    for (const s of ships) drawShip(s);
+    for (const m of missiles) drawMissile(m);
+  }
+
+  for (const p of particles) drawParticle(p);
+  for (const f of floaters) drawFloater(f);
+  ctx.restore();
+}
+
+function drawRadarBackground() {
+  ctx.strokeStyle = 'rgba(30, 120, 160, 0.12)';
+  ctx.lineWidth = 1;
+  const grid = 60;
+  for (let x = 0; x < W; x += grid) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+  }
+  for (let y = 0; y < H; y += grid) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+  }
+
+  ctx.strokeStyle = 'rgba(100, 220, 180, 0.06)';
+  for (let i = 0; i < 3; i++) {
+    const y = ((G.time * 0.5 + i * 200) % (H + 200)) - 100;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(W, y);
+    ctx.stroke();
+  }
+
+  if (G.mode !== 'usa') {
+    const grad = ctx.createLinearGradient(0, 0, W * 0.12, 0);
+    grad.addColorStop(0, 'rgba(110, 234, 168, 0.15)');
+    grad.addColorStop(1, 'rgba(110, 234, 168, 0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W * 0.12, H);
+
+    const grad2 = ctx.createLinearGradient(W * 0.88, 0, W, 0);
+    grad2.addColorStop(0, 'rgba(255, 68, 85, 0)');
+    grad2.addColorStop(1, 'rgba(255, 68, 85, 0.15)');
+    ctx.fillStyle = grad2;
+    ctx.fillRect(W * 0.88, 0, W * 0.12, H);
+  } else {
+    // US mode: danger zone on right (incoming threats)
+    const grad2 = ctx.createLinearGradient(W * 0.7, 0, W, 0);
+    grad2.addColorStop(0, 'rgba(255, 68, 85, 0)');
+    grad2.addColorStop(1, 'rgba(255, 68, 85, 0.2)');
+    ctx.fillStyle = grad2;
+    ctx.fillRect(W * 0.7, 0, W * 0.3, H);
+
+    // Destination zone on far left (goal)
+    const grad1 = ctx.createLinearGradient(0, 0, W * 0.15, 0);
+    grad1.addColorStop(0, 'rgba(110, 234, 168, 0.2)');
+    grad1.addColorStop(1, 'rgba(110, 234, 168, 0)');
+    ctx.fillStyle = grad1;
+    ctx.fillRect(0, 0, W * 0.15, H);
+  }
+}
+
+function drawCoast() {
+  ctx.fillStyle = '#1a3528';
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(W * 0.04, 0);
+  for (let y = 0; y <= H; y += 20) {
+    const jx = W * 0.04 + Math.sin(y * 0.05) * 8 + Math.sin(y * 0.13) * 4;
+    ctx.lineTo(jx, y);
+  }
+  ctx.lineTo(0, H);
+  ctx.closePath();
+  ctx.fill();
+
+  // Launcher
+  const lx = 18, ly = H / 2;
+  ctx.fillStyle = '#2a7a4a';
+  ctx.fillRect(lx - 8, ly - 10, 16, 20);
+  ctx.fillStyle = '#6eeaa8';
+  ctx.fillRect(lx - 2, ly - 14, 4, 8);
+
+  // Iran flag stripes
+  ctx.fillStyle = '#6eeaa8';
+  ctx.fillRect(lx - 10, ly - 22, 20, 2);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(lx - 10, ly - 20, 20, 2);
+  ctx.fillStyle = '#ff4455';
+  ctx.fillRect(lx - 10, ly - 18, 20, 2);
+}
+
+function drawUSMode() {
+  if (!G.usShip) return;
+  const s = G.usShip;
+
+  // Draw destination marker (left side)
+  ctx.fillStyle = 'rgba(110, 234, 168, 0.15)';
+  ctx.font = 'bold 12px sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#6eeaa8';
+  ctx.fillText('🎯 目的地', 10, H / 2);
+
+  // Draw US ship (carrier) — blinks while invulnerable after a hit
+  const bob = Math.sin(s.wiggle) * 2;
+  if (G.invuln > 0 && Math.floor(G.invuln / 5) % 2 === 0) return;
+  ctx.save();
+  ctx.translate(s.x, s.y + bob);
+  ctx.shadowColor = '#88ccff';
+  ctx.shadowBlur = 12;
+  // Hull
+  ctx.fillStyle = '#3355aa';
+  ctx.fillRect(-s.size, -s.size * 0.35, s.size * 2, s.size * 0.7);
+  // Deck
+  ctx.fillStyle = '#556688';
+  ctx.fillRect(-s.size * 0.9, -s.size * 0.25, s.size * 1.8, s.size * 0.5);
+  // Tower
+  ctx.fillStyle = '#7788aa';
+  ctx.fillRect(s.size * 0.3, -s.size * 0.4, s.size * 0.3, s.size * 0.2);
+  // US star
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.arc(0, -s.size * 0.1, s.size * 0.15, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#3355aa';
+  ctx.font = 'bold ' + Math.floor(s.size * 0.25) + 'px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('★', 0, -s.size * 0.05);
+  ctx.restore();
+
+  // Draw name tag
+  ctx.fillStyle = '#88ccff';
+  ctx.font = 'bold 11px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('USS ' + s.name, s.x, s.y + s.size + 14);
+
+  // Draw enemy mines
+  for (const m of enemyMines) {
+    ctx.save();
+    ctx.translate(m.x, m.y);
+    const pulse = Math.sin(m.pulse) * 0.3 + 0.7;
+    ctx.shadowColor = '#ff6633';
+    ctx.shadowBlur = 12;
+    ctx.fillStyle = '#ff6633';
+    ctx.beginPath();
+    ctx.arc(0, 0, 6 + pulse * 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#ff6633';
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 6; i++) {
+      const a = i * Math.PI / 3;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(a) * 6, Math.sin(a) * 6);
+      ctx.lineTo(Math.cos(a) * 11, Math.sin(a) * 11);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // Draw enemy missiles
+  for (const m of enemyMissiles) {
+    for (let i = 0; i < m.trail.length; i++) {
+      const t = m.trail[i];
+      const a = i / m.trail.length;
+      ctx.fillStyle = `rgba(255, 100, 80, ${a * 0.8})`;
+      ctx.beginPath();
+      ctx.arc(t.x, t.y, 2 + i * 0.3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.save();
+    ctx.translate(m.x, m.y);
+    ctx.rotate(Math.atan2(m.vy, m.vx));
+    ctx.shadowColor = '#ff4455';
+    ctx.shadowBlur = 10;
+    ctx.fillStyle = '#ffccaa';
+    ctx.beginPath();
+    ctx.moveTo(8, 0);
+    ctx.lineTo(-6, -3);
+    ctx.lineTo(-6, 3);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+function drawShip(s) {
+  const t = SHIP_TYPES[s.type];
+  const hitFlash = s.hit > 0;
+  const bobY = Math.sin(s.wiggle) * 1.5;
+
+  ctx.save();
+  ctx.translate(s.x, s.y + bobY);
+  ctx.shadowColor = hitFlash ? '#ffffff' : t.glow;
+  ctx.shadowBlur = hitFlash ? 20 : 10;
+
+  if (s.type === 'carrier') drawCarrier(s, t, hitFlash);
+  else if (s.type === 'cruiser') drawCruiser(s, t, hitFlash);
+  else if (s.type === 'destroyer') drawDestroyer(s, t, hitFlash);
+  else if (s.type === 'scout') drawScout(s, t, hitFlash);
+  else if (s.type === 'tanker') drawTanker(s, t, hitFlash);
+  ctx.restore();
+
+  if (s.type !== 'scout' && s.type !== 'tanker' && s.hp < s.maxHp) {
+    const w = s.size * 1.5;
+    const hpr = s.hp / s.maxHp;
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(s.x - w/2, s.y - s.size - 10, w, 4);
+    ctx.fillStyle = hpr > 0.5 ? '#6eeaa8' : hpr > 0.25 ? '#ffbb33' : '#ff4455';
+    ctx.fillRect(s.x - w/2, s.y - s.size - 10, w * hpr, 4);
+  }
+
+  if ((s.type === 'carrier' || s.type === 'tanker') && s.x < W - 80) {
+    ctx.fillStyle = s.type === 'tanker' ? '#ffcc33' : '#ff8888';
+    ctx.font = 'bold 10px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(s.name, s.x, s.y + s.size + 14);
+    if (s.type === 'tanker') {
+      ctx.fillStyle = '#ffcc33';
+      ctx.fillText('⚠️ 民用', s.x, s.y - s.size - 16);
+    }
+  }
+}
+
+function drawCarrier(s, t, flash) {
+  const col = flash ? '#ffffff' : t.color;
+  ctx.fillStyle = col;
+  ctx.fillRect(-s.size, -s.size * 0.35, s.size * 2, s.size * 0.7);
+  ctx.fillStyle = flash ? '#ffffff' : '#553333';
+  ctx.fillRect(-s.size * 0.9, -s.size * 0.25, s.size * 1.8, s.size * 0.5);
+  ctx.fillStyle = flash ? '#ffffff' : '#774444';
+  ctx.fillRect(s.size * 0.3, -s.size * 0.4, s.size * 0.3, s.size * 0.2);
+  ctx.fillStyle = '#aaa';
+  for (let i = 0; i < 3; i++) {
+    ctx.fillRect(-s.size * 0.6 + i * s.size * 0.3, -s.size * 0.1, 6, 3);
+  }
+}
+
+function drawCruiser(s, t, flash) {
+  const col = flash ? '#ffffff' : t.color;
+  ctx.fillStyle = col;
+  ctx.beginPath();
+  ctx.moveTo(-s.size, 0);
+  ctx.lineTo(-s.size * 0.7, -s.size * 0.4);
+  ctx.lineTo(s.size * 0.5, -s.size * 0.4);
+  ctx.lineTo(s.size, 0);
+  ctx.lineTo(s.size * 0.5, s.size * 0.4);
+  ctx.lineTo(-s.size * 0.7, s.size * 0.4);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = flash ? '#ffffff' : '#662222';
+  ctx.fillRect(-s.size * 0.2, -s.size * 0.5, s.size * 0.3, s.size * 0.3);
+  ctx.fillStyle = '#333';
+  ctx.fillRect(s.size * 0.2, -3, s.size * 0.4, 6);
+}
+
+function drawDestroyer(s, t, flash) {
+  const col = flash ? '#ffffff' : t.color;
+  ctx.fillStyle = col;
+  ctx.beginPath();
+  ctx.moveTo(-s.size, 0);
+  ctx.lineTo(-s.size * 0.6, -s.size * 0.35);
+  ctx.lineTo(s.size * 0.6, -s.size * 0.35);
+  ctx.lineTo(s.size, 0);
+  ctx.lineTo(s.size * 0.6, s.size * 0.35);
+  ctx.lineTo(-s.size * 0.6, s.size * 0.35);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = flash ? '#ffffff' : '#661111';
+  ctx.fillRect(-s.size * 0.1, -s.size * 0.55, s.size * 0.2, s.size * 0.3);
+}
+
+function drawScout(s, t, flash) {
+  const col = flash ? '#ffffff' : t.color;
+  ctx.fillStyle = col;
+  ctx.beginPath();
+  ctx.moveTo(-s.size, 0);
+  ctx.lineTo(s.size, -s.size * 0.3);
+  ctx.lineTo(s.size, s.size * 0.3);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawTanker(s, t, flash) {
+  const col = flash ? '#ffffff' : t.color;
+  ctx.fillStyle = col;
+  ctx.fillRect(-s.size, -s.size * 0.3, s.size * 2, s.size * 0.6);
+  ctx.fillStyle = flash ? '#ffffff' : '#cc9900';
+  for (let i = 0; i < 3; i++) {
+    ctx.beginPath();
+    ctx.arc(-s.size * 0.6 + i * s.size * 0.6, 0, s.size * 0.22, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.fillStyle = '#000';
+  ctx.fillRect(s.size * 0.7, -s.size * 0.15, 4, s.size * 0.3);
+}
+
+function drawMine(m) {
+  const pulse = Math.sin(m.pulse) * 0.3 + 0.7;
+  ctx.save();
+  ctx.translate(m.x, m.y);
+  ctx.strokeStyle = `rgba(255, 150, 50, ${0.25 * pulse})`;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(0, 0, m.triggerRange, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.shadowColor = '#ffaa33';
+  ctx.shadowBlur = 10;
+  ctx.fillStyle = '#ffaa33';
+  ctx.beginPath();
+  ctx.arc(0, 0, 6 + pulse * 2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#ffaa33';
+  ctx.lineWidth = 2;
+  for (let i = 0; i < 6; i++) {
+    const a = i * Math.PI / 3;
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(a) * 6, Math.sin(a) * 6);
+    ctx.lineTo(Math.cos(a) * 11, Math.sin(a) * 11);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawMissile(m) {
+  for (let i = 0; i < m.trail.length; i++) {
+    const t = m.trail[i];
+    const a = (t.life / 12) * (i / m.trail.length);
+    ctx.fillStyle = `rgba(110, 234, 168, ${a * 0.8})`;
+    ctx.beginPath();
+    ctx.arc(t.x, t.y, 2 + i * 0.2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.save();
+  ctx.translate(m.x, m.y);
+  ctx.rotate(Math.atan2(m.vy, m.vx));
+  ctx.shadowColor = '#6eeaa8';
+  ctx.shadowBlur = 10;
+  ctx.fillStyle = '#e8ffe0';
+  ctx.beginPath();
+  ctx.moveTo(8, 0);
+  ctx.lineTo(-6, -3);
+  ctx.lineTo(-6, 3);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawParticle(p) {
+  const a = p.life / 40;
+  ctx.fillStyle = p.color;
+  ctx.globalAlpha = Math.min(1, a);
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, p.size * a, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+}
+
+function drawFloater(f) {
+  const a = f.life / 60;
+  ctx.fillStyle = f.color;
+  ctx.globalAlpha = a;
+  ctx.font = 'bold 16px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(f.text, f.x, f.y);
+  ctx.globalAlpha = 1;
+}
+
+// =========================== LIFECYCLE ===========================
+function renderLives() {
+  livesEl.innerHTML = '';
+  const n = Math.max(G.lives, 0);
+  const max = Math.max(3, n);
+  for (let i = 0; i < max; i++) {
+    const s = document.createElement('span');
+    s.className = 'heart' + (i >= n ? ' lost' : '');
+    s.textContent = '❤';
+    livesEl.appendChild(s);
+  }
+}
+
+function startGame(mode = 'iran') {
+  initAudio();
+  G.mode = mode;
+  G.state = 'playing';
+  G.score = 0;
+  G.wave = 1;
+  G.waveKills = 0; G.waveTarget = 5;
+  G.combo = 1; G.comboTimer = 0;
+  G.kills = 0; G.carriers = 0; G.tankers = 0;
+  G.weapon = 'mine';
+  G.mineCooldown = 0;
+  G.oil = 0; G.oilForUpgrade = 100; G.upgradesOwned = [];
+  G.spawnTimer = 60;
+  G.time = 0;
+  G.paused = false;
+  ships.length = 0; mines.length = 0; missiles.length = 0;
+  particles.length = 0; floaters.length = 0;
+  enemyMines.length = 0; enemyMissiles.length = 0;
+
+  // Modifier setup
+  G.modifier = {};
+  if (mode === 'daily') {
+    G.dailyChallenge = getDailyChallenge();
+    G.modifier = { ...G.dailyChallenge.modifier };
+  }
+
+  // Stats reset with possible modifier changes
+  G.stats = {
+    mineRange: 40, mineBlast: 50, mineCdMul: G.modifier.mineCdMul || 1,
+    missileMax: 5, missileBlast: 70, missileDmg: 2, missileDouble: false,
+    comboDur: 180, scoreMul: 1, oilMul: 1,
+    invulnDur: 60, usAgility: 1,
+  };
+  G.invuln = 0;
+  G.autoPaused = false;
+  G.missileAmmo = G.modifier.infiniteMissile ? 999 : G.stats.missileMax;
+  G.lives = G.modifier.oneLife ? 1 : 3;
+
+  // US mode setup
+  if (mode === 'usa') {
+    G.usShip = {
+      x: W * 0.3, y: H / 2, targetY: H / 2,
+      size: 35, wiggle: 0, traveled: 0,
+      name: ['喬拜登號', '川普號', '自由號', '老鷹號'][Math.floor(Math.random() * 4)],
+    };
+    G.lives = 3;
+    modeLabelEl.textContent = '美軍艦隊';
+  } else {
+    modeLabelEl.textContent = mode === 'daily' ? '每日挑戰' : '革命衛隊';
+  }
+
+  // Respect noMine/noMissile - switch to valid weapon
+  if (G.modifier.noMine) G.weapon = 'missile';
+  if (G.modifier.noMissile) G.weapon = 'mine';
+  if (mode !== 'usa') selectWeapon(G.weapon);
+
+  renderLives();
+  startScreen.classList.add('hidden');
+  gameoverScreen.classList.add('hidden');
+  lbScreen.classList.add('hidden');
+
+  if (mode === 'usa') {
+    hud.classList.remove('hidden');
+    weaponsBar.classList.add('hidden');
+    oilBarWrap.classList.remove('hidden');
+  } else {
+    hud.classList.remove('hidden');
+    weaponsBar.classList.remove('hidden');
+    oilBarWrap.classList.remove('hidden');
+  }
+
+  const intro = mode === 'daily' ? `📅 今日挑戰：${G.dailyChallenge.emoji} ${G.dailyChallenge.name}`
+              : mode === 'usa' ? '🇺🇸 突破海峽！點擊畫面控制艦艇'
+              : '封鎖海峽！';
+  showTaunt(intro, mode === 'daily' ? '#ffbb33' : '#ff8833');
+}
+
+function endGame() {
+  G.state = 'gameover';
+  hud.classList.add('hidden');
+  weaponsBar.classList.add('hidden');
+  oilBarWrap.classList.add('hidden');
+
+  const { title, flair } = computeRank(G.score, G.tankers, G.carriers, G.mode);
+  document.getElementById('rank-title').textContent = title;
+  document.getElementById('flair-text').textContent = flair;
+  document.getElementById('final-score').textContent = G.score.toLocaleString();
+  document.getElementById('s-wave').textContent = G.wave;
+  document.getElementById('s-kills').textContent = G.kills;
+  document.getElementById('s-carriers').textContent = G.carriers;
+  document.getElementById('s-tankers').textContent = G.tankers;
+
+  // Save to history
+  saveToHistory({
+    score: G.score, wave: G.wave, kills: G.kills, carriers: G.carriers,
+    tankers: G.tankers, mode: G.mode, date: Date.now(),
+    daily: G.mode === 'daily' ? G.dailyChallenge.name : null,
+  });
+
+  const bestKey = G.mode === 'usa' ? 'hormuz_best_usa' : G.mode === 'daily' ? 'hormuz_best_daily' : 'hormuz_best';
+  const best = +(Store.get(bestKey) || 0);
+  if (G.score > best) {
+    Store.set(bestKey, G.score);
+    document.getElementById('hiscore-banner').classList.remove('hidden');
+    document.getElementById('best-score').textContent = G.score.toLocaleString();
+  } else {
+    document.getElementById('hiscore-banner').classList.add('hidden');
+    document.getElementById('best-score').textContent = best.toLocaleString();
+  }
+
+  gameoverScreen.classList.remove('hidden');
+}
+
+function computeRank(score, tankers, carriers, mode) {
+  let title, flair;
+  if (mode === 'usa') {
+    if (score >= 5000) { title = '⭐ 海峽征服者'; flair = '你成功突破海峽，伊朗革命衛隊顏面無光。航母順利抵達目標！'; }
+    else if (score >= 2000) { title = '🎖️ 第五艦隊中將'; flair = '表現優秀，國防部將頒發榮譽勳章。'; }
+    else if (score >= 800) { title = '🧭 海軍少校'; flair = '通過幾個防線，但還有長路要走。'; }
+    else { title = '🐣 海軍新兵'; flair = '新聞：美軍艦隊於荷姆茲海峽觸雷擱淺...'; }
+    return { title, flair };
+  }
+  if (tankers >= 3) {
+    title = '🛢️ 油輪屠夫';
+    flair = `你擊沉了 ${tankers} 艘民用油輪，石油價格暴漲 300%。國際法庭傳票已送達...`;
+  } else if (score >= 20000) {
+    title = '⚔️ 波斯灣傳奇';
+    flair = '你寫入歷史教科書。美國第五艦隊解散，你獲得真主嘉獎。';
+  } else if (score >= 8000) {
+    title = '🛡️ 海峽守護神';
+    flair = `擊沉 ${carriers} 艘航母的男人，五角大廈召開緊急會議。`;
+  } else if (score >= 3000) {
+    title = '🎖️ 革命衛隊猛將';
+    flair = '海峽無人能過，你是伊朗的榮耀。';
+  } else if (score >= 1000) {
+    title = '🎯 海峽巡邏員';
+    flair = '不錯的封鎖，美軍需要調整戰術了。';
+  } else if (score >= 300) {
+    title = '🧭 見習指揮官';
+    flair = '還需要練習，但方向是對的。';
+  } else {
+    title = '🐣 新兵蛋子';
+    flair = '下次別讓航母這麼輕易通過...';
+  }
+  return { title, flair };
+}
+
+// =========================== HISTORY / LEADERBOARD ===========================
+function saveToHistory(entry) {
+  try {
+    const hist = JSON.parse(Store.get('hormuz_history') || '[]');
+    hist.push(entry);
+    hist.sort((a, b) => b.score - a.score);
+    if (hist.length > 20) hist.length = 20;
+    Store.set('hormuz_history', JSON.stringify(hist));
+  } catch(e) {}
+}
+
+function loadHistory() {
+  try {
+    return JSON.parse(Store.get('hormuz_history') || '[]');
+  } catch(e) { return []; }
+}
+
+function showLeaderboard() {
+  const hist = loadHistory();
+  const container = document.getElementById('leaderboard-content');
+  container.innerHTML = '';
+
+  if (hist.length === 0) {
+    container.innerHTML = '<div class="lb-container"><div style="text-align:center;color:#5a8fa0;padding:20px;">尚無戰績紀錄<br>開始你的第一局！</div></div>';
+    return;
+  }
+
+  // Split by mode
+  const byMode = { iran: [], daily: [], usa: [] };
+  hist.forEach(h => { if (byMode[h.mode]) byMode[h.mode].push(h); });
+
+  const renderGroup = (mode, label) => {
+    if (byMode[mode].length === 0) return '';
+    const top = byMode[mode].slice(0, 5);
+    let html = `<div class="lb-container"><div class="lb-title">${label}</div>`;
+    top.forEach((h, i) => {
+      const date = new Date(h.date);
+      const dateStr = `${date.getMonth() + 1}/${date.getDate()}`;
+      html += `<div class="lb-row">
+        <span class="lb-rank">#${i + 1}</span>
+        <span class="lb-score">${h.score.toLocaleString()}</span>
+        <span class="lb-date">波 ${h.wave} · ${dateStr}</span>
+      </div>`;
+    });
+    html += '</div>';
+    return html;
+  };
+
+  container.innerHTML = renderGroup('iran', '🇮🇷 伊朗防禦')
+                      + renderGroup('daily', '📅 每日挑戰')
+                      + renderGroup('usa', '🇺🇸 美軍突破');
+}
+
+// =========================== SHARE CARD ===========================
+function generateShareCard() {
+  const cw = 720, ch = 960;
+  const c = document.createElement('canvas');
+  c.width = cw; c.height = ch;
+  const cx = c.getContext('2d');
+
+  const bg = cx.createRadialGradient(cw/2, ch*0.4, 100, cw/2, ch*0.4, cw);
+  bg.addColorStop(0, '#0a2540');
+  bg.addColorStop(1, '#020a18');
+  cx.fillStyle = bg;
+  cx.fillRect(0, 0, cw, ch);
+
+  cx.strokeStyle = 'rgba(30,120,160,0.15)';
+  cx.lineWidth = 1;
+  for (let x = 0; x < cw; x += 60) { cx.beginPath(); cx.moveTo(x, 0); cx.lineTo(x, ch); cx.stroke(); }
+  for (let y = 0; y < ch; y += 60) { cx.beginPath(); cx.moveTo(0, y); cx.lineTo(cw, y); cx.stroke(); }
+
+  const borderColor = G.mode === 'usa' ? '#3355aa' : '#ff4455';
+  cx.strokeStyle = borderColor;
+  cx.lineWidth = 4;
+  cx.strokeRect(10, 10, cw - 20, ch - 20);
+
+  cx.fillStyle = borderColor;
+  cx.font = 'bold 56px sans-serif';
+  cx.textAlign = 'center';
+  cx.shadowColor = borderColor;
+  cx.shadowBlur = 20;
+  cx.fillText('荷姆茲封鎖戰', cw / 2, 100);
+  cx.shadowBlur = 0;
+  cx.fillStyle = '#6eeaa8';
+  cx.font = '16px sans-serif';
+  const modeStr = G.mode === 'usa' ? '🇺🇸 美軍突破' : G.mode === 'daily' ? `📅 ${G.dailyChallenge.emoji} ${G.dailyChallenge.name}` : '🇮🇷 伊朗防禦';
+  cx.fillText(`HORMUZ BLOCKADE · ${modeStr}`, cw / 2, 130);
+
+  const { title, flair } = computeRank(G.score, G.tankers, G.carriers, G.mode);
+  cx.fillStyle = '#ffbb33';
+  cx.font = 'bold 40px sans-serif';
+  cx.shadowColor = '#ffbb33';
+  cx.shadowBlur = 15;
+  cx.fillText(title, cw / 2, 210);
+  cx.shadowBlur = 0;
+
+  cx.fillStyle = '#6eeaa8';
+  cx.font = '20px sans-serif';
+  cx.fillText('最終分數', cw / 2, 280);
+  cx.fillStyle = '#e8ffe0';
+  cx.font = 'bold 96px sans-serif';
+  cx.shadowColor = '#6eeaa8';
+  cx.shadowBlur = 20;
+  cx.fillText(G.score.toLocaleString(), cw / 2, 370);
+  cx.shadowBlur = 0;
+
+  const statsY = 460;
+  cx.strokeStyle = '#2a5a7a';
+  cx.lineWidth = 1;
+  const boxW = 280, boxH = 80;
+  const drawStat = (x, y, label, val, color) => {
+    cx.fillStyle = 'rgba(10,30,50,0.8)';
+    cx.fillRect(x, y, boxW, boxH);
+    cx.strokeRect(x, y, boxW, boxH);
+    cx.fillStyle = '#5a8fa0';
+    cx.font = '14px sans-serif';
+    cx.textAlign = 'center';
+    cx.fillText(label, x + boxW/2, y + 28);
+    cx.fillStyle = color;
+    cx.font = 'bold 36px sans-serif';
+    cx.fillText(val, x + boxW/2, y + 66);
+  };
+  drawStat(70, statsY, '達到波次', G.wave, '#6eeaa8');
+  drawStat(370, statsY, '擊沉艦艇', G.kills, '#6eeaa8');
+  drawStat(70, statsY + 100, '擊沉航母', G.carriers, '#ffbb33');
+  drawStat(370, statsY + 100, '誤擊油輪', G.tankers, G.tankers > 0 ? '#ff4455' : '#5a8fa0');
+
+  cx.fillStyle = '#b8e8d4';
+  cx.font = '18px sans-serif';
+  cx.textAlign = 'center';
+  wrapText(cx, flair, cw / 2, 720, cw - 120, 26);
+
+  // Upgrades badge
+  if (G.upgradesOwned.length > 0) {
+    cx.fillStyle = '#ffbb33';
+    cx.font = 'bold 14px sans-serif';
+    cx.fillText(`⚡ 升級 ${G.upgradesOwned.length} 次`, cw / 2, 820);
+  }
+
+  cx.fillStyle = '#5a8fa0';
+  cx.font = '14px sans-serif';
+  cx.fillText('✊ 你能封鎖海峽多久？來挑戰', cw / 2, ch - 40);
+
+  const link = document.createElement('a');
+  link.download = `hormuz-blockade-${G.mode}-${G.score}.png`;
+  link.href = c.toDataURL('image/png');
+  link.click();
+  showTaunt('戰報已下載！', '#6eeaa8');
+}
+
+function wrapText(ctx, text, x, y, maxW, lineH) {
+  const words = text.split('');
+  let line = '';
+  let cy = y;
+  for (const ch of words) {
+    const test = line + ch;
+    if (ctx.measureText(test).width > maxW) {
+      ctx.fillText(line, x, cy);
+      line = ch;
+      cy += lineH;
+    } else {
+      line = test;
+    }
+  }
+  if (line) ctx.fillText(line, x, cy);
+}
+
+// =========================== BOOT INTRO ===========================
+function runBootIntro(onDone) {
+  bootScreen.classList.remove('hidden');
+  startScreen.classList.add('hidden');
+  const lines = [
+    '> 伊朗革命衛隊海軍指揮中心',
+    '> 初始化雷達系統...',
+    '> 連接衛星...OK',
+    '> 加載武器庫...OK',
+    '> 🚨 警報：大量美艦訊號',
+    '> 座標：荷姆茲海峽 26.5°N 56.0°E',
+    '> 第五艦隊全速接近',
+    '> 準備防禦...',
+    '',
+    '> 指揮權移交給你',
+  ];
+  let i = 0, charIdx = 0;
+  bootText.innerHTML = '';
+  function typeNext() {
+    if (i >= lines.length) {
+      setTimeout(() => {
+        bootScreen.classList.add('hidden');
+        onDone();
+      }, 600);
+      return;
+    }
+    const line = lines[i];
+    if (charIdx < line.length) {
+      bootText.textContent += line[charIdx];
+      charIdx++;
+      beep(520 + Math.random() * 80, 0.01, 'square', 0.03);
+      setTimeout(typeNext, 30);
+    } else {
+      bootText.textContent += '\n';
+      charIdx = 0;
+      i++;
+      setTimeout(typeNext, 120);
+    }
+  }
+  typeNext();
+}
+
+// =========================== LOOP ===========================
+const STEP = 1000 / 60;
+let _lastTime = 0, _accumulator = 0;
+
+function loop(now) {
+  requestAnimationFrame(loop);
+  if (!_lastTime) { _lastTime = now; return; }
+
+  let dt = now - _lastTime;
+  _lastTime = now;
+  // Clamp big jumps (tab was backgrounded, slow device hiccup)
+  if (dt > 250) dt = STEP;
+  _accumulator += dt;
+
+  // Fixed timestep: identical speed on 60Hz / 90Hz / 120Hz / 144Hz
+  let steps = 0;
+  while (_accumulator >= STEP && steps < 5) {
+    if (G.state === 'playing' && !G.paused) update();
+    _accumulator -= STEP;
+    steps++;
+  }
+  if (steps >= 5) _accumulator = 0; // give up on catching up
+
+  if (G.state === 'playing' || G.state === 'menu') render();
+}
+
+// Pause when tab is hidden so player doesn't lose lives off-screen
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    G.autoPaused = G.state === 'playing' && !G.paused;
+    if (G.autoPaused) G.paused = true;
+  } else {
+    _lastTime = 0; _accumulator = 0;
+    if (G.autoPaused) { G.paused = false; G.autoPaused = false; }
+  }
+});
+
+// =========================== INIT ===========================
+document.querySelectorAll('.mode-card').forEach(card => {
+  card.addEventListener('click', () => {
+    initAudio();
+    const mode = card.dataset.mode;
+    if (mode === 'iran') {
+      // First time? Boot intro
+      if (!Store.get('hormuz_booted')) {
+        Store.set('hormuz_booted', '1');
+        runBootIntro(() => startGame('iran'));
+      } else {
+        startGame('iran');
+      }
+    } else {
+      startGame(mode);
+    }
+  });
+});
+
+document.getElementById('start-btn').addEventListener('click', () => {
+  initAudio();
+  if (!Store.get('hormuz_booted')) {
+    Store.set('hormuz_booted', '1');
+    runBootIntro(() => startGame('iran'));
+  } else {
+    startGame('iran');
+  }
+});
+
+document.getElementById('retry-btn').addEventListener('click', () => startGame(G.mode));
+document.getElementById('menu-btn').addEventListener('click', () => {
+  G.state = 'menu';
+  gameoverScreen.classList.add('hidden');
+  startScreen.classList.remove('hidden');
+});
+document.getElementById('share-btn').addEventListener('click', generateShareCard);
+document.getElementById('lb-btn').addEventListener('click', () => {
+  startScreen.classList.add('hidden');
+  showLeaderboard();
+  lbScreen.classList.remove('hidden');
+});
+document.getElementById('lb-back').addEventListener('click', () => {
+  lbScreen.classList.add('hidden');
+  startScreen.classList.remove('hidden');
+});
+
+// Init display
+(function initDisplay() {
+  const best = +(Store.get('hormuz_best') || 0);
+  document.getElementById('best-score').textContent = best.toLocaleString();
+  const d = getDailyChallenge();
+  document.getElementById('daily-desc').innerHTML = `${d.emoji} ${d.name}<br>${d.desc}`;
+})();
+
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
