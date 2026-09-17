@@ -5,14 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#0a1628">
 <title>荷姆茲封鎖戰 · Hormuz Blockade</title>
-<meta name="description" content="荷姆茲封鎖戰 — 佈雷、發射反艦飛彈，擋住美軍第五艦隊。60 秒一局的海峽攻防遊戲。">
+<meta name="description" content="荷姆茲封鎖戰 — 佈雷、發射反艦飛彈，擋住美軍第五艦隊。即開即玩的海峽攻防遊戲，手機與電腦皆可玩。">
 <meta property="og:title" content="荷姆茲封鎖戰 · Hormuz Blockade">
-<meta property="og:description" content="你能擋住第幾波美軍？佈雷、射飛彈、守住海峽 — 60 秒一局。">
+<meta property="og:description" content="你能擋住第幾波美軍？佈雷、射飛彈、守住海峽 — 即開即玩。">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://jiapunk.github.io/hormuz-blockade/">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="荷姆茲封鎖戰 · Hormuz Blockade">
-<meta name="twitter:description" content="你能擋住第幾波美軍？佈雷、射飛彈、守住海峽 — 60 秒一局。">
+<meta name="twitter:description" content="你能擋住第幾波美軍？佈雷、射飛彈、守住海峽 — 即開即玩。">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💣</text></svg>">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
@@ -784,6 +784,7 @@ function updateIranMode() {
   // Ships
   for (let i = ships.length - 1; i >= 0; i--) {
     const s = ships[i];
+    if (s.dead) continue;
     s.x -= s.speed;
     s.wiggle += 0.05;
     if (s.hit > 0) s.hit--;
@@ -808,6 +809,7 @@ function updateIranMode() {
       }
     }
   }
+  sweepDeadShips();
 
   // Mines
   for (let i = mines.length - 1; i >= 0; i--) {
@@ -954,8 +956,11 @@ function missileExplode(x, y, blast, dmg) {
 }
 
 function damageShipsInRadius(x, y, r, dmg) {
-  for (let i = ships.length - 1; i >= 0; i--) {
-    const s = ships[i];
+  // Mark ships dead instead of splicing here: callers iterate the ships
+  // array (mine detonation happens inside the ship loop), and splicing
+  // mid-iteration shifts indices and silently skips ships.
+  for (const s of ships) {
+    if (s.dead) continue;
     const d = Math.hypot(s.x - x, s.y - y);
     if (d < r + s.size) {
       if (s.type === 'tanker') {
@@ -965,16 +970,22 @@ function damageShipsInRadius(x, y, r, dmg) {
         showTaunt(randOf(TAUNTS_TANKER), '#ffcc33');
         floatText(s.x, s.y, '-100 油輪！', '#ffcc33');
         spawnExplosion(s.x, s.y, 35, '#ffcc33');
-        ships.splice(i, 1);
+        s.dead = true;
         continue;
       }
       s.hp -= dmg;
       s.hit = 8;
       if (s.hp <= 0) {
         killShip(s);
-        ships.splice(i, 1);
+        s.dead = true;
       }
     }
+  }
+}
+
+function sweepDeadShips() {
+  for (let i = ships.length - 1; i >= 0; i--) {
+    if (ships[i].dead) ships.splice(i, 1);
   }
 }
 
@@ -1000,7 +1011,7 @@ function killShip(s) {
     G.carriers++;
     showTaunt(randOf(TAUNTS_CARRIER), '#ffbb33');
     G.screenShake = 10;
-    G.missileAmmo = Math.min(G.missileAmmo + 2, G.stats.missileMax);
+    if (!G.modifier.infiniteMissile) G.missileAmmo = Math.min(G.missileAmmo + 2, G.stats.missileMax);
   } else if (G.combo >= 5 && G.combo % 3 === 0) {
     showTaunt(randOf(TAUNTS_COMBO).replace('{n}', G.combo), '#6eeaa8');
   } else if (Math.random() < 0.15) {
